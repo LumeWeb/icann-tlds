@@ -4,8 +4,9 @@ template-data:
   unroll-variadic: true
 filename: "{{.InterfaceName}}.go"
 packages:
-  go.lumeweb.com/icann-tlds:
+  go.lumeweb.com/icann-tlds/tlds:
     config:
       dir: ./mocks
       pkgname: mocks
-    interfaces: {}
+    interfaces:
+      Registry: {}

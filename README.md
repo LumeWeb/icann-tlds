@@ -1,19 +1,55 @@
 # icann-tlds
 
-Go SDK for detecting ICANN-registered TLDs and determining whether a domain
-name belongs to the ICANN namespace, backed by the IANA
+Go package for detecting ICANN-registered TLDs and determining whether a
+domain name belongs to the ICANN namespace, backed by the IANA
 [tlds-alpha-by-domain](https://data.iana.org/TLD/tlds-alpha-by-domain.txt)
 root zone list.
 
-## Status
+## Usage
 
-Scaffold stage — see `doc.go` for the intended package scope.
+```go
+import "go.lumeweb.com/icann-tlds/tlds"
+```
+
+The list is fetched from IANA lazily on first use and cached for the process
+lifetime. Queries are case-insensitive:
+
+```go
+ok, err := tlds.IsICANN(ctx, "example.com")
+ok, err := tlds.IsICANNTld(ctx, "com")
+```
+
+Independent instances with custom options:
+
+```go
+reg, err := tlds.New(tlds.WithURL("https://mirror.example/tlds.txt"))
+ok, err := reg.IsICANN(ctx, "example.com")
+```
+
+Failed fetches return `tlds.ErrNotLoaded`; a failed `Refresh` keeps serving
+the previously loaded list.
+
+## API
+
+| Member | Description |
+|--------|-------------|
+| `Default()` | Shared package-level `Registry` |
+| `New(opts...)` | Instance with custom options |
+| `(Registry).IsICANN(ctx, domain)` | Is the domain's final label an ICANN TLD? |
+| `(Registry).IsICANNTld(ctx, tld)` | Is the single label an ICANN TLD? |
+| `(Registry).TLDs(ctx)` | Sorted list of registered TLDs |
+| `(Registry).Refresh(ctx)` | Force a re-fetch (conditional GET when supported) |
+| `(Registry).LastUpdated()` | When the snapshot was fetched |
+| `(Registry).Source()` | URL the list is fetched from |
+
+Options: `WithURL`, `WithHTTPClient`, `WithRetryConfig`, `WithLogger`.
 
 ## Development
 
 ```sh
 go build ./...
-go test ./...
+go test -race ./...
+mockery
 ```
 
 ## License
