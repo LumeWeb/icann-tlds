@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: ICANN TLD API
+  description: >
+    API for detecting ICANN-registered TLDs using the IANA
+    "tlds-alpha-by-domain" root zone list. Extracted from the
+    portal-plugin-ipfs repository.
+  version: 0.1.0
+servers:
+  - url: https://api.example.com
+paths: {}
+components: {}
