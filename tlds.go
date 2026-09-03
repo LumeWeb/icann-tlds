@@ -14,7 +14,7 @@
 //
 //	reg, err := tlds.New(tlds.WithURL("https://mirror.example/tlds.txt"))
 //	ok, err := reg.IsICANN(ctx, "example.com")
-package tlds
+package icann
 
 import (
 	"context"
@@ -34,7 +34,7 @@ const DefaultURL = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 
 // ErrNotLoaded is returned by queries when the list has not been fetched
 // successfully yet, for example when the authority is unreachable.
-var ErrNotLoaded = errors.New("tlds: registry list not loaded")
+var ErrNotLoaded = errors.New("icann: registry list not loaded")
 
 // Registry is the query surface over an IANA root zone list snapshot.
 // Implementations must be safe for concurrent use.
@@ -131,11 +131,11 @@ func New(opts ...Option) (Registry, error) {
 		opt(cfg)
 	}
 	if strings.TrimSpace(cfg.url) == "" {
-		return nil, errors.New("tlds: fetch URL must not be empty")
+		return nil, errors.New("icann: fetch URL must not be empty")
 	}
 	parsed, err := url.Parse(cfg.url)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil, errors.New("tlds: invalid fetch URL: " + cfg.url)
+		return nil, errors.New("icann: invalid fetch URL: " + cfg.url)
 	}
 	return &registry{cfg: cfg}, nil
 }

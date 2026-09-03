@@ -1,4 +1,4 @@
-package tlds
+package icann
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type registry struct {
 	fetchedFrom  string
 }
 
-var errNotModified = errors.New("tlds: list not modified")
+var errNotModified = errors.New("icann: list not modified")
 
 // ensureLoaded fetches the list if it has not been loaded yet. Subsequent
 // calls after a failed load retry the fetch, so callers recover as soon as
@@ -55,7 +55,7 @@ func (r *registry) Refresh(ctx context.Context) error {
 	if fetchErr != nil {
 		if r.tlds != nil {
 			// Keep serving the stale list; report why it was not updated.
-			return fmt.Errorf("tlds: refresh failed, serving previous list: %w", fetchErr)
+			return fmt.Errorf("icann: refresh failed, serving previous list: %w", fetchErr)
 		}
 		return fmt.Errorf("%w: %v", ErrNotLoaded, fetchErr)
 	}
@@ -72,7 +72,7 @@ func (r *registry) Refresh(ctx context.Context) error {
 	parsed, err := parseList(data)
 	if err != nil {
 		if r.tlds != nil {
-			return fmt.Errorf("tlds: refresh failed, serving previous list: %w", err)
+			return fmt.Errorf("icann: refresh failed, serving previous list: %w", err)
 		}
 		return err
 	}

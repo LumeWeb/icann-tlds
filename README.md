@@ -8,25 +8,25 @@ root zone list.
 ## Usage
 
 ```go
-import "go.lumeweb.com/icann-tlds/tlds"
+import "go.lumeweb.com/icann-tlds"
 ```
 
 The list is fetched from IANA lazily on first use and cached for the process
 lifetime. Queries are case-insensitive:
 
 ```go
-ok, err := tlds.IsICANN(ctx, "example.com")
-ok, err := tlds.IsICANNTld(ctx, "com")
+ok, err := icann.IsICANN(ctx, "example.com")
+ok, err := icann.IsICANNTld(ctx, "com")
 ```
 
 Independent instances with custom options:
 
 ```go
-reg, err := tlds.New(tlds.WithURL("https://mirror.example/tlds.txt"))
+reg, err := icann.New(icann.WithURL("https://mirror.example/tlds.txt"))
 ok, err := reg.IsICANN(ctx, "example.com")
 ```
 
-Failed fetches return `tlds.ErrNotLoaded`; a failed `Refresh` keeps serving
+Failed fetches return `icann.ErrNotLoaded`; a failed `Refresh` keeps serving
 the previously loaded list.
 
 ## API

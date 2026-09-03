@@ -1,4 +1,4 @@
-package tlds
+package icann
 
 import (
 	"fmt"

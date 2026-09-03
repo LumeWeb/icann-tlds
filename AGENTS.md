@@ -9,9 +9,6 @@ the icann-tlds project.
 ```bash
 # Build all packages
 go build -v ./...
-
-# Build a specific package
-go build -v ./tlds
 ```
 
 ### Testing
@@ -19,8 +16,8 @@ go build -v ./tlds
 # Run all tests with race detection and coverage
 go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
-# Run a specific package's tests
-go test -v -race ./tlds
+# Run tests for the root package only
+go test -v -race .
 
 # View coverage report
 go tool cover -func=coverage.out
@@ -56,10 +53,10 @@ versus an alternate root such as HNS.
 
 ### Package Structure
 - **Module path**: `go.lumeweb.com/icann-tlds`
-- **Root package** (`icann`): umbrella docs only via `doc.go`
-- **`tlds` subpackage**: the actual functionality
+- **Root package** (`icann`): all functionality; `doc.go` holds the package
+  documentation
 
-### tlds Subpackage Design
+### Design
 The root zone list is fetched from IANA
 (`https://data.iana.org/TLD/tlds-alpha-by-domain.txt`) lazily on first use —
 no network call happens at import time or in `New`.
@@ -93,4 +90,6 @@ no network call happens at import time or in `New`.
   the real IANA endpoint
 - `testdata/tlds-alpha-by-domain.txt` is a real IANA list snapshot used as a
   fixture only — it is not embedded at runtime
+- Do not add a README/board copyright header to source files; attribution
+  lives only in the LICENSE file
 - Generated mocks live in `mocks/` (mockery, testify templates)
