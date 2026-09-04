@@ -20,6 +20,10 @@ type registry struct {
 	cfg *config
 
 	mu           sync.RWMutex
+	// loadMu serializes the initial load so concurrent first-use callers
+	// trigger a single fetch instead of one fetch per caller. Lock order
+	// is always loadMu before mu.
+	loadMu       sync.Mutex
 	tlds         map[string]struct{}
 	etag         string
 	lastModified string
@@ -31,10 +35,19 @@ var errNotModified = errors.New("icann: list not modified")
 
 // ensureLoaded fetches the list if it has not been loaded yet. Subsequent
 // calls after a failed load retry the fetch, so callers recover as soon as
-// the authority becomes reachable.
+// the authority becomes reachable. A single-flight lock guarantees exactly
+// one initial fetch when concurrent queries race on a cold registry.
 func (r *registry) ensureLoaded(ctx context.Context) error {
 	r.mu.RLock()
 	loaded := r.tlds != nil
+	r.mu.RUnlock()
+	if loaded {
+		return nil
+	}
+	r.loadMu.Lock()
+	defer r.loadMu.Unlock()
+	r.mu.RLock()
+	loaded = r.tlds != nil
 	r.mu.RUnlock()
 	if loaded {
 		return nil
@@ -47,7 +60,7 @@ func (r *registry) ensureLoaded(ctx context.Context) error {
 // the current list and confirms it is still current. On failure the existing
 // list, if any, is left intact.
 func (r *registry) Refresh(ctx context.Context) error {
-	data, notModified, fetchErr := r.fetch(ctx)
+	data, etag, lastModified, notModified, fetchErr := r.fetch(ctx)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -77,17 +90,22 @@ func (r *registry) Refresh(ctx context.Context) error {
 		return err
 	}
 	r.tlds = parsed
+	// Persist the response validators so the next refresh can send
+	// conditional headers.
+	r.etag = etag
+	r.lastModified = lastModified
 	r.updatedAt = time.Now()
 	r.fetchedFrom = r.cfg.url
 	return nil
 }
 
-// fetch performs the HTTP GET with retries and conditional headers. The
-// returned data is only meaningful when notModified is false.
-func (r *registry) fetch(ctx context.Context) (data []byte, notModified bool, err error) {
+// fetch performs the HTTP GET with retries and conditional headers, returning
+// the response validators for the caller to persist. The returned data is
+// only meaningful when notModified is false.
+func (r *registry) fetch(ctx context.Context) (data []byte, etag, lastModified string, notModified bool, err error) {
 	r.mu.RLock()
-	etag := r.etag
-	lastModified := r.lastModified
+	etag = r.etag
+	lastModified = r.lastModified
 	loaded := r.tlds != nil
 	r.mu.RUnlock()
 
@@ -136,12 +154,12 @@ func (r *registry) fetch(ctx context.Context) (data []byte, notModified bool, er
 		},
 	)
 	if retryErr != nil {
-		return nil, false, retryErr
+		return nil, "", "", false, retryErr
 	}
 	if !loaded && notModified {
-		return nil, false, fmt.Errorf("%w: 304 without a cached snapshot", ErrNotLoaded)
+		return nil, "", "", false, fmt.Errorf("%w: 304 without a cached snapshot", ErrNotLoaded)
 	}
-	return data, notModified, nil
+	return data, etag, lastModified, notModified, nil
 }
 
 // maxListSize caps the accepted payload. The real list is well under 1 MiB;

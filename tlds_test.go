@@ -186,6 +186,37 @@ func TestFetchFailureKeepsPreviousList(t *testing.T) {
 	}
 }
 
+func TestConditionalGetPersistedValidators(t *testing.T) {
+	// Regression: validators from a 200 must persist so the next refresh
+	// actually sends conditional headers and receives a 304.
+	etag := `"v1"`
+	list := mustTestList(t)
+	var sawConditional atomic.Int32
+
+	reg := newServerRegistry(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") == etag {
+			sawConditional.Add(1)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("ETag", etag)
+		_, _ = w.Write([]byte(list))
+	}, WithRetryConfig(RetryConfig{MaxAttempts: 3, BaseDelay: time.Millisecond}))
+
+	if err := reg.Refresh(context.Background()); err != nil {
+		t.Fatalf("initial Refresh: %v", err)
+	}
+
+	// A direct second refresh proves persistence: the server only answers
+	// 304 after receiving the persisted If-None-Match validator.
+	if err := reg.Refresh(context.Background()); err != nil {
+		t.Fatalf("second Refresh: %v", err)
+	}
+	if sawConditional.Load() == 0 {
+		t.Error("second refresh did not send If-None-Match; validators were not persisted")
+	}
+}
+
 func TestConditionalGet304(t *testing.T) {
 	etag := `"v1"`
 	list := mustTestList(t)
@@ -267,6 +298,39 @@ func TestConcurrentAccess(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestConcurrentFirstUseSingleFlight(t *testing.T) {
+	// Regression: concurrent first-use queries must trigger exactly one
+	// initial fetch, not one per caller.
+	var fetches atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches.Add(1)
+		time.Sleep(10 * time.Millisecond)
+		_, _ = w.Write([]byte(mustTestList(t)))
+	}))
+	t.Cleanup(srv.Close)
+
+	reg := newTestRegistry(t, WithURL(srv.URL))
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if _, err := reg.IsICANN(context.Background(), "example.com"); err != nil {
+				t.Errorf("concurrent IsICANN: %v", err)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	if got := fetches.Load(); got != 1 {
+		t.Errorf("first-use fetches = %d, want 1", got)
+	}
 }
 
 func TestDefaultShared(t *testing.T) {
