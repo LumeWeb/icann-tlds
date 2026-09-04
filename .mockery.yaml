@@ -8,4 +8,5 @@ packages:
     config:
       dir: ./mocks
       pkgname: mocks
-    interfaces: {}
+    interfaces:
+      Registry: {}

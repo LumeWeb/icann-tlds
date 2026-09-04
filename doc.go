@@ -1,9 +1,18 @@
-// Package icann provides a Go SDK for working with the ICANN namespace.
+// Package icann provides detection of ICANN-gTLD/ccTLD suffixes using the
+// IANA "tlds-alpha-by-domain" root zone list, fetched from the IANA
+// authority at first use.
 //
-// The SDK is being scaffolded to host the TLD API extracted from the
-// portal-plugin-ipfs repository. This API makes the IANA
-// "tlds-alpha-by-domain" root zone list available as a service, so that
-// callers can determine whether a domain name's final label is an
-// IANA-registered TLD (the ICANN namespace) versus an alternate root such
-// as HNS.
+// The package answers a single question: does a domain name belong to the
+// ICANN namespace (its final label is an IANA-registered TLD) versus an
+// alternate root such as HNS.
+//
+// The list is fetched lazily on first use and cached for the process
+// lifetime. Queries are case-insensitive:
+//
+//	ok, err := icann.IsICANN(ctx, "example.com")
+//
+// Independent instances with custom options:
+//
+//	reg, err := icann.New(icann.WithURL("https://mirror.example/tlds.txt"))
+//	ok, err := reg.IsICANN(ctx, "example.com")
 package icann
